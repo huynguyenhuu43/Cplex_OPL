@@ -1,0 +1,248 @@
+int numT= 2; // Time period
+int numProductsP= 2; // Products
+int numFactoryJ=2; // Factories
+int numM=2; //Raw fish material
+int numDisL=2; // Central distributor
+
+range timeperiod=1..numT;
+range products=1.. numProductsP;
+range factories=1..numFactoryJ;
+range material=1..numM;
+range distributor=1.. numDisL;
+range DisPro= 1..numDisL*numProductsP;
+range FacPro = 1..numFactoryJ*numProductsP; 
+range MaFac= 1..numM*numFactoryJ;
+range DisFac= 1..numDisL*numFactoryJ;
+range FacDisPro = 1..numProductsP*numFactoryJ*numT;
+//Parameters
+
+//(D)
+float DemandMatrix[DisPro][timeperiod] = ...;
+float D[l in distributor][p in products][t in timeperiod] = DemandMatrix[(l-1)*numProductsP + p][t];
+
+//(p1)
+float ProductionRateMatrix[FacPro][timeperiod] = ...;
+float p1[j in factories][p in products][t in timeperiod]= ProductionRateMatrix[(j-1)*numProductsP + p][t];
+
+//(Cp)
+float ProductionCostMatrix[FacPro][timeperiod]=...;
+float Cp[j in factories][p in products][t in timeperiod]= ProductionCostMatrix[(j-1)*numProductsP + p][t];
+
+//(CR)
+float CostPurchasingMatrix[MaFac][timeperiod] = ...;
+float CR[m in material][j in factories][t in timeperiod]= CostPurchasingMatrix[(m-1)*numFactoryJ + j][t];
+
+//(CT)
+float CT_Matrix[FacDisPro][timeperiod]=...;
+float CT[j in factories][l in distributor][p in products][t in timeperiod]=CT_Matrix[(j-1)*numDisL*numProductsP 
++ (l-1)*numProductsP + p][t];
+
+float CW[factories][timeperiod]=...;
+
+//(CIR)
+float InventoryCostRawMatrix[MaFac][timeperiod] = ...;
+float CIR[m in material][j in factories][t in timeperiod]= InventoryCostRawMatrix[(m-1)*numFactoryJ + j][t];
+
+//(CIp)
+float InventoryCostCannedMatrix[FacPro][timeperiod]=...;
+float CIp[j in factories][p in products][t in timeperiod]=
+InventoryCostCannedMatrix[(j-1)*numProductsP + p][t];   
+
+//(CID)
+float InventoryCostDistributorMatrix[DisPro][timeperiod]=...;
+float CID[l in distributor][p in products][t in timeperiod]= InventoryCostDistributorMatrix[(l-1)*numProductsP + p][t];
+
+//(CEp)
+float ProductionCostCarbonMatrix[FacPro][timeperiod] = ...;
+float CEp[j in factories][p in products][t in timeperiod]= ProductionCostCarbonMatrix[(j-1)*numProductsP + p][t];
+
+//(CET)
+float TransportCostCarbonMatrix[DisFac][timeperiod]=...;
+float CET[l in distributor][j in factories][t in timeperiod]= TransportCostCarbonMatrix[(l-1)*numFactoryJ + j][t];
+
+//(CTF)
+float TracingCostCannedMatrix [FacPro][timeperiod]=...;
+float CTF[j in factories][p in products][t in timeperiod]= TracingCostCannedMatrix[(j-1)*numProductsP + p][t];
+
+int ELV= 1500; //Total government allowable carbon emissions
+int W=250; // Availability of labor in producing canned fish products   
+
+//(Ep)
+float ProductionRateCarbonMatrix[FacPro][timeperiod] = ...;
+float Ep[j in factories][p in products][t in timeperiod]= ProductionRateCarbonMatrix[(j-1)*numProductsP + p][t]; 
+
+//(ET)
+float TransportRateCarbonMatrix[DisFac][timeperiod]=...;
+float ET[l in distributor][j in factories][t in timeperiod]= TransportRateCarbonMatrix[(l-1)*numFactoryJ + j][t]; 
+
+//Decision variables
+dvar float+ x[factories][products][timeperiod];
+dvar float+ u[material][factories][timeperiod];
+dvar float+ z[factories][distributor][products][timeperiod];
+dvar int+ w[factories][timeperiod];
+dvar float+ IR[material][factories][timeperiod];
+dvar float+ Ip[factories][products][timeperiod];
+dvar float+ ID[distributor][products][timeperiod];
+dvar float+ TEp[factories][products][timeperiod];
+dvar float+ TET[factories][distributor][timeperiod];
+
+//binary variable
+dvar boolean y[factories][products][timeperiod];
+
+//Objective function: minimize Total Cost
+dexpr float Total_Cost= 
+sum(p in products, j in factories, t in timeperiod)Cp[p][j][t]*x[p][j][t]+sum(m in material , j in factories,t in timeperiod)CR[m][j][t]*u[m][j][t] + 
+sum(p in products, l in distributor,j in factories, t in timeperiod)CT[p][l][j][t]*z[p][l][j][t]+
+sum(j in factories, t in timeperiod)CW[j][t]*w[j][t]+
+sum(m in material, j in factories, t in timeperiod)CIR[m][j][t]*IR[m][j][t]+
+sum(p in products, j in factories, t in timeperiod)CIp[p][j][t]*Ip[p][j][t]+
+sum(p in products, l in distributor, t in timeperiod)CID[p][l][t]*ID[p][l][t]+
+sum(p in products, j in factories, t in timeperiod)CEp[p][j][t]*TEp[p][j][t]+
+sum(l in distributor, j in factories, t in timeperiod)CET[l][j][t]*TET[l][j][t]+
+sum(p in products, j in factories, t in timeperiod)CTF[p][j][t]*x[p][j][t];
+
+minimize Total_Cost;
+subject to {
+ //eq2
+forall(p in products, t in timeperiod, m in material)
+{sum(j in factories)x[p][j][t] <= sum(j in factories)u[m][j][t];}
+ //eq3
+forall(p in products, j in factories, t in timeperiod)
+{x[p][j][t] <= y[p][j][t]*p1[p][j][t];}
+ //eq4
+forall(p in products, j in factories, t in timeperiod)
+{sum(l in distributor) z[p][l][j][t] <= x[p][j][t];}
+
+ //eq8
+forall(p in products, j in factories, t in timeperiod)
+{Ip[p][j][t]+ x[p][j][t] >= sum(l in distributor)z[p][l][j][t];}
+ //eq9
+forall(p in products, l in distributor, t in timeperiod)
+{ID[p][l][t]+ sum(j in factories)z[p][l][j][t] >= D[p][l][t];}
+ //eq10
+{sum(p in products, j in factories, t in timeperiod)x[p][j][t]*Ep[p][j][t] + 
+sum(p in products, l in distributor, j in factories, t in timeperiod)z[p][l][j][t]*ET[l][j][t] <= ELV;}
+  //eq11
+{sum(j in factories, t in timeperiod)w[j][t]<=W;}
+//eq12
+forall(p in products, j in factories, t in timeperiod)
+{TEp[p][j][t]==x[p][j][t]*Ep[p][j][t];}
+//eq13
+forall(l in distributor, j in factories, t in timeperiod){
+TET[l][j][t]==sum(p in products)z[p][l][j][t]*ET[l][j][t];}
+ //eq5
+forall(m in material, j in factories, t in timeperiod: t>1){
+  IR[m][j][t]== IR[m][j][t-1] +u[m][j][t] - sum(p in products)x[p][j][t];
+};
+ //eq6
+forall(p in products, j in factories, t in timeperiod: t>1){
+  Ip[p][j][t]==Ip[p][j][t-1] +x[p][j][t] - sum(l in distributor)z[p][l][j][t];}
+ //eq7
+forall(p in products, l in distributor, t in timeperiod: t>1){
+  ID[p][l][t]==ID[p][l][t-1] + sum(j in factories)z[p][l][j][t] - D[p][l][t];}
+}
+// Display results
+execute {
+    // Print the total cost
+    writeln("Total Cost: ", cplex.getObjValue());
+
+    // Loop through the products, factories, and time periods to display the production values (x[p][j][t])
+    for (var p in products) {
+        for (var j in factories) {
+            for (var t in timeperiod) {
+                if (x[p][j][t] > 0) { // Check if there is any production happening
+                    writeln("Production of Product ", p, " at Factory ", j, " in Time Period ", t, ": ", x[p][j][t]);
+                }
+            }
+        }
+    }
+
+    // Loop through the materials to display the usage values (u[m][j][t])
+    for (var m in material) {
+        for (var j in factories) {
+            for (var t in timeperiod) {
+                if (u[m][j][t] > 0) { // Check if any material is used
+                    writeln("Material ", m, " used at Factory ", j, " in Time Period ", t, ": ", u[m][j][t]);
+                }
+            }
+        }
+    }
+
+    // Loop through the distribution decisions (z[p][l][j][t]) and display
+    for (var p in products) {
+        for (var l in distributor) {
+            for (var j in factories) {
+                for (var t in timeperiod) {
+                    if (z[p][l][j][t] > 0) { // Check if distribution happens
+                        writeln("Product ", p, " is distributed from Factory ", j, " to Distributor ", l, " in Time Period ", t, ": ", z[p][l][j][t]);
+                    }
+                }
+            }
+        }
+    }
+
+    // Loop through the labor variables (w[j][t]) and display if they are active
+    for (var j in factories) {
+        for (var t in timeperiod) {
+            if (w[j][t] > 0) { // Check if labor is active at factory j in time period t
+                writeln("Labor is active at Factory ", j, " in Time Period ", t);
+            }
+        }
+    }
+
+    // Optional: Display the inventory variables for raw materials (IR[m][j][t])
+    for (var m in material) {
+        for (var j in factories) {
+            for (var t in timeperiod) {
+                if (IR[m][j][t] > 0) {
+                    writeln("Inventory of Material ", m, " at Factory ", j, " in Time Period ", t, ": ", IR[m][j][t]);
+                }
+            }
+        }
+    }
+
+    // Optional: Display the product inventory at factories (Ip[p][j][t])
+    for (var p in products) {
+        for (var j in factories) {
+            for (var t in timeperiod) {
+                if (Ip[p][j][t] > 0) {
+                    writeln("Inventory of Product ", p, " at Factory ", j, " in Time Period ", t, ": ", Ip[p][j][t]);
+                }
+            }
+        }
+    }
+
+    // Optional: Display the inventory at distributors (ID[p][l][t])
+    for (var p in products) {
+        for (var l in distributor) {
+            for (var t in timeperiod) {
+                if (ID[p][l][t] > 0) {
+                    writeln("Inventory of Product ", p, " at Distributor ", l, " in Time Period ", t, ": ", ID[p][l][t]);
+                }
+            }
+        }
+    }
+
+    // Optional: Display the emission-related variables
+    for (var p in products) {
+        for (var j in factories) {
+            for (var t in timeperiod) {
+                if (TEp[p][j][t] > 0) {
+                    writeln("Total Emission for Product ", p, " at Factory ", j, " in Time Period ", t, ": ", TEp[p][j][t]);
+                }
+            }
+        }
+    }
+
+    for (var l in distributor) {
+        for (var j in factories) {
+            for (var t in timeperiod) {
+                if (TET[l][j][t] > 0) {
+                    writeln("Total Emission for Distributor ", l, " from Factory ", j, " in Time Period ", t, ": ", TET[l][j][t]);
+                }
+            }
+        }
+    }
+}
+
+ 

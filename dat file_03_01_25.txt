@@ -1,0 +1,20 @@
+/*********************************************
+ * OPL 12.10.0.0 Data
+ * Author: Dell
+ * Creation Date: 3 thg 1, 2025 at 13:33:06
+ *********************************************/
+SheetConnection Data("Caps Data.xlsx");
+DemandMatrix from SheetRead(Data, "DisPro!C7:D10");
+ProductionRateMatrix from SheetRead(Data,"FacPro!C6:D9");
+ProductionCostMatrix from SheetRead(Data,"FacPro!C16:D19");
+CostPurchasingMatrix from SheetRead(Data,"MaFac!C5:D8");
+CT_Matrix from SheetRead(Data,"FacDisPro!D6:E9");
+CW from SheetRead(Data,"Factime!B3:C4");
+InventoryCostRawMatrix from SheetRead(Data,"MaFac!C15:D18");
+InventoryCostCannedMatrix from SheetRead(Data,"FacPro!C27:D30");
+InventoryCostDistributorMatrix from SheetRead(Data,"DisPro!C17:D20");
+ProductionCostCarbonMatrix from SheetRead(Data,"FacPro!C37:D40");
+TransportCostCarbonMatrix from SheetRead(Data,"DisFac!C5:D8");
+TracingCostCannedMatrix from SheetRead(Data,"FacPro!C47:D50");
+ProductionRateCarbonMatrix from SheetRead(Data,"FacPro!C56:D59");
+TransportRateCarbonMatrix from SheetRead(Data,"DisFac!C15:D18");
